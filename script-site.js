@@ -1428,16 +1428,33 @@
     
     window.generateQrCode = async function() {
         const container = document.getElementById('qrCode');
-        container.innerHTML = '<p class="text-gray-600">⏳ Gerando PIX válido...</p>';
         
         try {
+            // Verificar se a biblioteca QRCode está disponível
+            if (typeof QRCode === 'undefined') {
+                console.error('❌ Biblioteca QRCode não carregada!');
+                container.innerHTML = '<p class="text-red-500 font-bold">❌ Erro: biblioteca QRCode não disponível</p>';
+                return;
+            }
+            
+            container.innerHTML = '<p class="text-gray-600">⏳ Gerando PIX válido...</p>';
+            
             // Obter configurações
             let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
             const pixKey = settings.pixKey;
             const amount = window.checkoutTotal;
             
+            console.log('🔍 generateQrCode iniciado:', { pixKey, amount });
+            
             if (!pixKey) {
+                console.error('❌ Chave PIX não configurada');
                 container.innerHTML = '<p class="text-red-500 font-bold">❌ Chave PIX não configurada!</p>';
+                return;
+            }
+            
+            if (!amount || amount <= 0) {
+                console.error('❌ Valor inválido:', amount);
+                container.innerHTML = '<p class="text-red-500 font-bold">❌ Valor do pedido inválido!</p>';
                 return;
             }
             
@@ -1445,6 +1462,7 @@
             const backendUrl = 'https://quitanda-backend.onrender.com';
             
             console.log('📡 Chamando backend:', backendUrl + '/api/gerar-pix');
+            console.log('📊 Dados:', { pixKey, amount });
             
             const response = await fetch(backendUrl + '/api/gerar-pix', {
                 method: 'POST',
@@ -1458,77 +1476,134 @@
                 })
             });
             
+            console.log('📋 Resposta status:', response.status);
+            
             if (!response.ok) {
-                throw new Error(`Erro na requisição: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
             }
             
             const data = await response.json();
+            console.log('📦 Resposta backend:', data);
             
             if (!data.success) {
-                throw new Error(data.error || 'Erro ao gerar PIX');
+                throw new Error(data.error || 'Backend retornou erro desconhecido');
             }
             
             const pixCode = data.pixCode;
+            
+            if (!pixCode) {
+                throw new Error('PIX code vazio na resposta do backend');
+            }
+            
+            console.log('✅ PIX recebido:', pixCode.substring(0, 50) + '...');
             
             // Limpar container
             container.innerHTML = '';
             
             // Gerar QR Code a partir do brcode válido
-            new QRCode(container, {
-                text: pixCode,
-                width: 300,
-                height: 300,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H,
-                margin: 2
-            });
+            try {
+                new QRCode(container, {
+                    text: pixCode,
+                    width: 300,
+                    height: 300,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H,
+                    margin: 2
+                });
+                
+                console.log('%c✅ QR Code gerado com sucesso!', 'color: green; font-weight: bold;');
+            } catch (qrError) {
+                console.error('❌ Erro ao gerar QR Code (qrcodejs):', qrError);
+                container.innerHTML = '<p class="text-red-500 font-bold">❌ Erro ao gerar QR Code</p>';
+                return;
+            }
             
             // Armazenar para copiar depois
             window.currentPixCode = pixCode;
+            window.currentPixKey = pixKey;
             
             console.log('%c✅ PIX gerado com sucesso pelo backend!', 'color: green; font-weight: bold;');
             console.log('📌 Chave PIX:', pixKey);
             console.log('💰 Valor:', 'R$ ' + amount.toFixed(2));
-            console.log('📱 Código (Copia e Cola):', pixCode.substring(0, 80) + '...');
+            console.log('📱 Código PIX completo:', pixCode);
             
         } catch (error) {
-            console.error('❌ Erro ao gerar QR Code:', error);
+            console.error('%c❌ Erro ao gerar QR Code:', 'color: red; font-weight: bold;', error);
+            console.error('Stack:', error.stack);
+            
+            let errorMsg = '❌ Erro ao conectar com o servidor';
+            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                errorMsg = '❌ Erro de conexão com o backend';
+            } else if (error.message.includes('JSON')) {
+                errorMsg = '❌ Erro: resposta inválida do backend';
+            }
+            
             container.innerHTML = `
-                <p class="text-red-500 font-bold">❌ Erro ao conectar com o servidor</p>
-                <p class="text-sm text-gray-600 mt-2">Backend: https://quitanda-backend.onrender.com</p>
+                <p class="text-red-500 font-bold">${errorMsg}</p>
+                <p class="text-xs text-gray-600 mt-2">Detalhes: ${error.message}</p>
             `;
         }
     };
     
     window.copyQrCode = function(btn) {
-        // Copiar a chave PIX configurada (mais simples e confiável)
-        let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
-        let pixKey = settings.pixKey || window.currentPixCode || '81992659707';
-        
-        if (!pixKey) {
-            alert('⚠️ Chave PIX não foi configurada!');
-            return;
-        }
-        
-        navigator.clipboard.writeText(pixKey).then(() => {
-            // Mostrar feedback visual
-            if (btn) {
-                let originalText = btn.textContent;
-                btn.textContent = '✅ Chave copiada!';
-                btn.style.backgroundColor = '#10b981';
-                
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
-                }, 2000);
+        try {
+            // Copiar código PIX completo (mais útil que apenas a chave)
+            let pixCodeToCopy = window.currentPixCode || window.currentPixKey;
+            let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
+            
+            if (!pixCodeToCopy) {
+                pixCodeToCopy = settings.pixKey;
             }
             
-            console.log('✅ Chave PIX copiada:', pixKey);
-        }).catch(err => {
-            console.error('❌ Erro ao copiar:', err);
-            alert('Erro ao copiar chave PIX. Verifique se o PIX foi gerado corretamente.');
-        });
+            if (!pixCodeToCopy) {
+                console.error('❌ Nenhum código PIX disponível para copiar');
+                alert('⚠️ Nenhum código PIX foi gerado. Tente novamente.');
+                return;
+            }
+            
+            console.log('📋 Copiando:', pixCodeToCopy.substring(0, 50) + '...');
+            
+            navigator.clipboard.writeText(pixCodeToCopy).then(() => {
+                console.log('✅ Código PIX copiado com sucesso!');
+                
+                // Mostrar feedback visual
+                if (btn) {
+                    let originalText = btn.textContent;
+                    let originalBg = btn.style.backgroundColor;
+                    
+                    btn.textContent = '✅ Chave copiada!';
+                    btn.style.backgroundColor = '#10b981';
+                    btn.disabled = true;
+                    
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.backgroundColor = originalBg;
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('❌ Erro ao copiar:', err);
+                // Fallback: tentar com método antigo
+                try {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = pixCodeToCopy;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    console.log('✅ Copiado com fallback!');
+                    alert('✅ Chave PIX copiada para a área de transferência!');
+                } catch (fallbackErr) {
+                    console.error('❌ Fallback também falhou:', fallbackErr);
+                    alert('Erro ao copiar chave PIX. Por favor, copie manualmente.');
+                }
+            });
+        } catch (error) {
+            console.error('❌ Erro em copyQrCode:', error);
+            alert('Erro ao copiar chave PIX.');
+        }
     };
     
     window.closeQrCodeModal = function() {

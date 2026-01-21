@@ -1,4 +1,7 @@
-const http = require('http');
+#!/usr/bin/env node
+
+// Script para testar a geração de PIX com CRC16 correto
+// Execute com: node testar_pix.js
 
 // CRC16-CCITT polynomial 0x1021 - Algoritmo correto do Banco Central
 function calculateCRC16(data) {
@@ -75,56 +78,54 @@ function generatePixCode(pixKey, amount) {
     return pixString;
 }
 
-const server = http.createServer((req, res) => {
-    // CORS Headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
-        return;
-    }
-    
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    
-    if (req.url === '/api/health') {
-        res.end(JSON.stringify({ status: 'online', message: 'Backend OK!' }));
-    } else if (req.url === '/api/gerar-pix' && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => body += chunk);
-        req.on('end', () => {
-            try {
-                const data = JSON.parse(body);
-                const { pixKey, amount } = data;
-                
-                const pixCode = generatePixCode(pixKey, amount);
-                
-                console.log('✅ PIX gerado:', pixCode);
-                
-                res.end(JSON.stringify({
-                    success: true,
-                    pixCode: pixCode,
-                    pixKey: pixKey,
-                    amount: amount,
-                    message: 'OK'
-                }));
-            } catch(e) {
-                console.error('❌ Erro:', e.message);
-                res.end(JSON.stringify({
-                    success: false,
-                    error: e.message
-                }));
-            }
-        });
-    } else {
-        res.end(JSON.stringify({ message: 'Quitanda Backend' }));
-    }
-});
+// Testes
+console.log('╔════════════════════════════════════════╗');
+console.log('║  TESTE GERAÇÃO DE PIX COM CRC16       ║');
+console.log('╚════════════════════════════════════════╝\n');
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Backend rodando na porta ${PORT}`);
-});
+// Teste 1: Chave com números soltos
+const pixKey1 = '81992659707';
+const amount1 = 17.97;
+const code1 = generatePixCode(pixKey1, amount1);
 
+console.log('📋 Teste 1: Chave CPF');
+console.log(`  Chave: ${pixKey1}`);
+console.log(`  Valor: R$ ${amount1.toFixed(2)}`);
+console.log(`  Código PIX: ${code1}`);
+console.log(`  Comprimento: ${code1.length} caracteres`);
+console.log(`  CRC16: ${code1.slice(-4)}`);
+console.log('');
+
+// Teste 2: Valor maior
+const pixKey2 = '12345678900';
+const amount2 = 150.50;
+const code2 = generatePixCode(pixKey2, amount2);
+
+console.log('📋 Teste 2: Valor maior');
+console.log(`  Chave: ${pixKey2}`);
+console.log(`  Valor: R$ ${amount2.toFixed(2)}`);
+console.log(`  Código PIX: ${code2}`);
+console.log(`  Comprimento: ${code2.length} caracteres`);
+console.log(`  CRC16: ${code2.slice(-4)}`);
+console.log('');
+
+// Teste 3: Chave com máscara
+const pixKey3 = '123.456.789-00';
+const amount3 = 99.99;
+const code3 = generatePixCode(pixKey3, amount3);
+
+console.log('📋 Teste 3: Chave com máscara');
+console.log(`  Chave: ${pixKey3}`);
+console.log(`  Valor: R$ ${amount3.toFixed(2)}`);
+console.log(`  Código PIX: ${code3}`);
+console.log(`  Comprimento: ${code3.length} caracteres`);
+console.log(`  CRC16: ${code3.slice(-4)}`);
+console.log('');
+
+console.log('✅ Testes concluídos!');
+console.log('');
+console.log('📌 Dicas:');
+console.log('  • Copie o código PIX e teste no seu banco');
+console.log('  • O CRC16 é sempre os 4 últimos dígitos');
+console.log('  • Se der erro 2055, o CRC está incorreto');
+console.log('');
