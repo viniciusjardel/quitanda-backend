@@ -21,14 +21,28 @@ const server = http.createServer((req, res) => {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
-            const data = JSON.parse(body);
-            res.end(JSON.stringify({
-                success: true,
-                pixCode: data.pixKey,
-                pixKey: data.pixKey,
-                amount: data.amount,
-                message: 'OK'
-            }));
+            try {
+                const data = JSON.parse(body);
+                const { pixKey, amount } = data;
+                
+                // Gerar um código PIX simples (chave PIX com valor)
+                // Formato simplificado: 00020126... (padrão PIX)
+                // Para simplicidade, retornar chave + identificação
+                const pixCode = `00020126360014br.gov.bcb.pix0136${pixKey}520400005303986540${String(amount).padStart(10, '0')}5802BR5913QUITANDA6009Jaboatao62410503***63047D3C`;
+                
+                res.end(JSON.stringify({
+                    success: true,
+                    pixCode: pixCode,
+                    pixKey: pixKey,
+                    amount: amount,
+                    message: 'OK'
+                }));
+            } catch(e) {
+                res.end(JSON.stringify({
+                    success: false,
+                    error: e.message
+                }));
+            }
         });
     } else {
         res.end(JSON.stringify({ message: 'Quitanda Backend' }));
