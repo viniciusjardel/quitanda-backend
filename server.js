@@ -59,14 +59,13 @@ function generatePixCode(pixKey, amount) {
     pixString += '59' + String(merchantName.length).padStart(2, '0') + merchantName;
     
     // 60: Merchant City
-    const merchantCity = 'JABOATAO DOS GUARARAPES';
+    const merchantCity = 'JABOATAODOSGUARARAPES';
     pixString += '60' + String(merchantCity.length).padStart(2, '0') + merchantCity;
     
-    // 62: Additional Data Field Template (opcional)
-    // 05: Reference Label (usar ***00 como padrão)
-    const refLabel = '***00';
-    let additionalData = '05' + String(refLabel.length).padStart(2, '0') + refLabel;
-    pixString += '62' + String(additionalData.length).padStart(2, '0') + additionalData;
+    // 62: Additional Data Field Template (REMOVER - alguns bancos rejeitam)
+    // const refLabel = '***00';
+    // let additionalData = '05' + String(refLabel.length).padStart(2, '0') + refLabel;
+    // pixString += '62' + String(additionalData.length).padStart(2, '0') + additionalData;
     
     // Calcular CRC16 ANTES de adicionar o campo CRC
     const crc16 = calculateCRC16(pixString);
