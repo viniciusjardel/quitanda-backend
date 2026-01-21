@@ -30,7 +30,7 @@ function generatePixCode(pixKey, amount) {
     pixString += '000201';
     
     // 26: Merchant Account Information - PIX (Identificador 26)
-    const pixField = '00br.gov.bcb.pix';
+    const pixField = 'br.gov.bcb.pix';  // Sem o "00" - isso é TAG, não valor!
     const pixFieldValue = pixKeyClean;
     let accountInfo = '00' + String(pixField.length).padStart(2, '0') + pixField;
     accountInfo += '01' + String(pixFieldValue.length).padStart(2, '0') + pixFieldValue;
