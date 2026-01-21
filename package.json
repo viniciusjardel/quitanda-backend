@@ -8,6 +8,9 @@
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "mercado-pago": "^2.0.0"
   }
 }
 
