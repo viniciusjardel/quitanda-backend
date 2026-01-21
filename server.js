@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const Brcode = require('brcode-js');
+const { toDynamicBrcode } = require('brcode');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // ===== ENDPOINT PARA GERAR PIX COM QR CODE =====
-app.post('/api/gerar-pix', (req, res) => {
+app.post('/api/gerar-pix', async (req, res) => {
     try {
         const { pixKey, amount, orderId } = req.body;
 
@@ -22,17 +22,17 @@ app.post('/api/gerar-pix', (req, res) => {
             });
         }
 
-        // Gerar BRCode válido
-        const brcode = new Brcode({
-            key: pixKey,
-            merchant: 'Quitanda Villa Natal',
-            city: 'Jaboatao dos Guararapes',
-            value: parseFloat(amount),
-            transactionId: orderId || 'QUITANDA' + Date.now().toString().slice(-6)
+        // Gerar BRCode dinâmico válido
+        const pixCode = await toDynamicBrcode({
+            merchantAccountInformation: {
+                pixKey: pixKey,
+            },
+            merchantCategoryCode: '0000',
+            transactionAmount: parseFloat(amount),
+            merchantName: 'QUITANDA VILLA NATAL',
+            merchantCity: 'Jaboatao dos Guararapes',
+            transactionId: orderId || 'QUITANDA' + Date.now().toString().slice(-6),
         });
-
-        // Gerar código PIX (com CRC16 válido)
-        const pixCode = brcode.generate();
 
         console.log(`✅ PIX Gerado | ID: ${orderId} | Valor: R$ ${amount} | Chave: ${pixKey}`);
 

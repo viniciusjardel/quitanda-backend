@@ -13,7 +13,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "brcode-js": "^1.5.0"
+    "brcode": "^2.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
