@@ -6,9 +6,6 @@
   "scripts": {
     "start": "node server.js"
   },
-  "dependencies": {
-    "brcode": "^2.0.0"
-  },
   "engines": {
     "node": "18.x"
   }
