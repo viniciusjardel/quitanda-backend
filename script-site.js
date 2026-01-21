@@ -1185,6 +1185,8 @@
         
         if (method === 'pix') {
             window.openPixPayment();
+        } else if (method === 'mercado_pago') {
+            window.openMercadoPagoPayment();
         } else if (method === 'credit_card') {
             window.openCardPayment('credit');
         } else if (method === 'debit_card') {
@@ -1225,6 +1227,49 @@
         }
         navigator.clipboard.writeText(pixKey);
         alert('✅ Chave PIX copiada para a área de transferência!');
+    };
+    
+    // ===== MERCADO PAGO =====
+    window.openMercadoPagoPayment = async function() {
+        try {
+            const email = prompt('📧 Digite seu email para o pagamento:');
+            if (!email || !email.includes('@')) {
+                alert('⚠️ Email inválido!');
+                return;
+            }
+            
+            // Mostrar loading
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Processando...';
+            
+            // Chamar backend para criar preferência
+            const response = await fetch('https://quitanda-backend.onrender.com/api/mercado-pago-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: window.checkoutTotal,
+                    email: email,
+                    description: 'Compra Quitanda Villa Natal'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.checkoutUrl) {
+                // Redirecionar para checkout do Mercado Pago
+                window.location.href = data.checkoutUrl;
+            } else {
+                alert('❌ Erro ao processar pagamento. Tente novamente!');
+                btn.disabled = false;
+                btn.textContent = '🔴 Mercado Pago';
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            alert('❌ Erro ao processar pagamento: ' + error.message);
+        }
     };
     
     // ===== CARTÃO DE CRÉDITO/DÉBITO =====

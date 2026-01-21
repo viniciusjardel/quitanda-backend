@@ -1,4 +1,10 @@
 const http = require('http');
+const https = require('https');
+
+// ===== CONFIGURAÇÃO MERCADO PAGO =====
+// IMPORTANTE: Adicione seu token no arquivo .env ou aqui
+const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || 'seu_access_token_aqui';
+const MP_PUBLIC_KEY = process.env.MP_PUBLIC_KEY || 'sua_public_key_aqui';
 
 // CRC16-CCITT polynomial 0x1021 - Algoritmo correto do Banco Central
 function calculateCRC16(data) {
@@ -93,6 +99,108 @@ const server = http.createServer((req, res) => {
                     amount: amount,
                     message: 'OK'
                 }));
+            } catch(e) {
+                console.error('❌ Erro:', e.message);
+                res.end(JSON.stringify({
+                    success: false,
+                    error: e.message
+                }));
+            }
+        });
+    } else if (req.url === '/api/mercado-pago-init' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { amount, description, orderId } = data;
+                
+                // Retorna a PUBLIC KEY do Mercado Pago para o frontend
+                res.end(JSON.stringify({
+                    success: true,
+                    publicKey: MP_PUBLIC_KEY,
+                    amount: amount,
+                    description: description,
+                    orderId: orderId
+                }));
+            } catch(e) {
+                console.error('❌ Erro:', e.message);
+                res.end(JSON.stringify({
+                    success: false,
+                    error: e.message
+                }));
+            }
+        });
+    } else if (req.url === '/api/mercado-pago-payment' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { token, amount, email } = data;
+                
+                // Criar preferência no Mercado Pago
+                const postData = JSON.stringify({
+                    items: [
+                        {
+                            title: 'Compra Quitanda Villa Natal',
+                            quantity: 1,
+                            unit_price: amount
+                        }
+                    ],
+                    payer: {
+                        email: email
+                    },
+                    back_urls: {
+                        success: 'https://quitanda-backend.onrender.com/sucesso',
+                        failure: 'https://quitanda-backend.onrender.com/erro',
+                        pending: 'https://quitanda-backend.onrender.com/pendente'
+                    },
+                    auto_return: 'approved'
+                });
+                
+                const options = {
+                    hostname: 'api.mercadopago.com',
+                    path: '/checkout/preferences',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${MP_ACCESS_TOKEN}`,
+                        'Content-Length': postData.length
+                    }
+                };
+                
+                const mpReq = https.request(options, (mpRes) => {
+                    let mpData = '';
+                    mpRes.on('data', chunk => mpData += chunk);
+                    mpRes.on('end', () => {
+                        try {
+                            const preference = JSON.parse(mpData);
+                            res.end(JSON.stringify({
+                                success: true,
+                                preferenceId: preference.id,
+                                checkoutUrl: preference.init_point
+                            }));
+                        } catch(e) {
+                            res.end(JSON.stringify({
+                                success: false,
+                                error: 'Erro ao processar resposta'
+                            }));
+                        }
+                    });
+                });
+                
+                mpReq.on('error', (e) => {
+                    console.error('Erro Mercado Pago:', e.message);
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: e.message
+                    }));
+                });
+                
+                mpReq.write(postData);
+                mpReq.end();
+                
             } catch(e) {
                 console.error('❌ Erro:', e.message);
                 res.end(JSON.stringify({
