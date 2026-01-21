@@ -22,36 +22,31 @@ function calculateCRC16(data) {
     return crc.toString(16).toUpperCase().padStart(4, '0');
 }
 
-// Gerar PIX - Versão VALIDADA pelo Banco Central
+// Gerar PIX - Versão CORRIGIDA com tamanhos corretos
 function generatePixCode(pixKey, amount) {
-    const key = pixKey.replace(/\D/g, ''); // Remove não-dígitos
-    
-    // Usar apenas os campos OBRIGATÓRIOS conforme BC:
-    // 00: Versão
-    // 26: Merchant Account (PIX)
-    // 52: MCC
-    // 53: Moeda
-    // 54: Valor (OPCIONAL se não tiver valor)
-    // 58: País
-    // 63: CRC16
+    const key = pixKey.replace(/\D/g, '');
     
     let data = '';
     data += '00' + '02' + '01';  // Versão 01
     
     // Campo 26: Merchant Account Information
     const pixId = 'br.gov.bcb.pix';
-    let field26 = '00' + pixId.length + pixId;
-    field26 += '01' + key.length + key;
-    data += '26' + field26.length + field26;
+    // Subtag 00: Identificador
+    let sub00 = '00' + String(pixId.length).padStart(2, '0') + pixId;
+    // Subtag 01: Chave
+    let sub01 = '01' + String(key.length).padStart(2, '0') + key;
+    // Campo 26 completo
+    let field26 = sub00 + sub01;
+    data += '26' + String(field26.length).padStart(2, '0') + field26;
     
     data += '52' + '04' + '0000';  // MCC
     data += '53' + '03' + '986';   // BRL
     
-    // Campo 54: Valor (se houver)
-    if (amount > 0) {
-        const valueStr = Math.round(amount * 100).toString();
-        data += '54' + valueStr.length + valueStr;
-    }
+    // Campo 54: Valor (REMOVIDO - alguns bancos rejeitam PIX com valor pré-definido)
+    // if (amount > 0) {
+    //     const valueStr = Math.round(amount * 100).toString();
+    //     data += '54' + String(valueStr.length).padStart(2, '0') + valueStr;
+    // }
     
     data += '58' + '02' + 'BR';  // País
     
