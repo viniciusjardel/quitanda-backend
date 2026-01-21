@@ -15,9 +15,10 @@ function calculateCRC16(data) {
         crc ^= (byte << 8);
         
         for (let j = 0; j < 8; j++) {
-            crc <<= 1;
-            if (crc & 0x10000) {
-                crc = (crc ^ 0x1021) & 0xFFFF;
+            if (crc & 0x8000) {
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+            } else {
+                crc = (crc << 1) & 0xFFFF;
             }
         }
     }
