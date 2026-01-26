@@ -1157,54 +1157,6 @@
         const deliveryFee = window.deliveryType === 'delivery' ? 3.00 : 0;
         const total = cartTotal + deliveryFee;
         
-        // Salvar dados do carrinho e entrega para uso posterior
-        window.checkoutTotal = total;
-        window.checkoutCartTotal = cartTotal;
-        window.checkoutDeliveryFee = deliveryFee;
-        
-        // Abrir modal de método de pagamento
-        document.getElementById('deliveryModal').classList.add('hidden');
-        document.getElementById('deliveryModal').classList.remove('flex');
-        document.getElementById('paymentMethodModal').classList.remove('hidden');
-        document.getElementById('paymentMethodModal').classList.add('flex');
-    };
-    
-    window.closePixModal = function() {
-        document.getElementById('pixModal').classList.add('hidden');
-        document.getElementById('pixModal').classList.remove('flex');
-        window.toggleCart();
-    };
-    
-    // ===== NOVOS MÉTODOS DE PAGAMENTO =====
-    
-    window.selectPaymentMethod = function(method) {
-        console.log('Método de pagamento selecionado:', method);
-        
-        document.getElementById('paymentMethodModal').classList.add('hidden');
-        document.getElementById('paymentMethodModal').classList.remove('flex');
-        
-        if (method === 'pix') {
-            window.openPixPayment();
-        } else if (method === 'mercado_pago') {
-            window.openMercadoPagoPayment();
-        } else if (method === 'credit_card') {
-            window.openCardPayment('credit');
-        } else if (method === 'debit_card') {
-            window.openCardPayment('debit');
-        } else if (method === 'pix_qr') {
-            window.openQrCodePayment();
-        }
-    };
-    
-    window.closePaymentMethodModal = function() {
-        document.getElementById('paymentMethodModal').classList.add('hidden');
-        document.getElementById('paymentMethodModal').classList.remove('flex');
-        document.getElementById('deliveryModal').classList.remove('hidden');
-        document.getElementById('deliveryModal').classList.add('flex');
-    };
-    
-    // ===== PIX SIMPLES =====
-    window.openPixPayment = function() {
         let settings = {};
         try {
             settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
@@ -1213,454 +1165,35 @@
         }
         
         document.getElementById('pixKey').textContent = settings.pixKey || 'Não configurado';
-        document.getElementById('pixTotal').textContent = `R$ ${window.checkoutTotal.toFixed(2)}`;
+        document.getElementById('pixTotal').textContent = `R$ ${total.toFixed(2)}`;
         
+        document.getElementById('deliveryModal').classList.add('hidden');
+        document.getElementById('deliveryModal').classList.remove('flex');
         document.getElementById('pixModal').classList.remove('hidden');
         document.getElementById('pixModal').classList.add('flex');
     };
     
+    window.closePixModal = function() {
+        document.getElementById('pixModal').classList.add('hidden');
+        document.getElementById('pixModal').classList.remove('flex');
+        window.toggleCart();
+    };
+    
     window.copyPix = function() {
         const pixKey = document.getElementById('pixKey').textContent;
-        if (pixKey === 'Não configurado') {
-            alert('⚠️ Chave PIX não foi configurada no painel admin!');
-            return;
-        }
         navigator.clipboard.writeText(pixKey);
-        alert('✅ Chave PIX copiada para a área de transferência!');
+        alert('✅ Chave PIX copiada!');
     };
     
-    // ===== MERCADO PAGO =====
-    window.openMercadoPagoPayment = async function() {
+    window.sendToWhatsApp = function() {
+        const cartTotal = window.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const deliveryFee = window.deliveryType === 'delivery' ? 3.00 : 0;
+        const total = cartTotal + deliveryFee;
+        
+        let settings = {};
         try {
-            const email = prompt('📧 Digite seu email para o pagamento:');
-            if (!email || !email.includes('@')) {
-                alert('⚠️ Email inválido!');
-                return;
-            }
-            
-            // Mostrar loading
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = '⏳ Processando...';
-            
-            // Chamar backend para criar preferência
-            const response = await fetch('https://quitanda-backend.onrender.com/api/mercado-pago-payment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    amount: window.checkoutTotal,
-                    email: email,
-                    description: 'Compra Quitanda Villa Natal'
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success && data.checkoutUrl) {
-                // Redirecionar para checkout do Mercado Pago
-                window.location.href = data.checkoutUrl;
-            } else {
-                alert('❌ Erro ao processar pagamento. Tente novamente!');
-                btn.disabled = false;
-                btn.textContent = '🔴 Mercado Pago';
-            }
-        } catch (error) {
-            console.error('Erro:', error);
-            alert('❌ Erro ao processar pagamento: ' + error.message);
-        }
-    };
-    
-    // ===== CARTÃO DE CRÉDITO/DÉBITO =====
-    window.openCardPayment = function(type) {
-        const title = type === 'credit' ? '💳 Pagamento com Cartão de Crédito' : '🏦 Pagamento com Cartão de Débito';
-        document.getElementById('cardPaymentTitle').textContent = title;
-        document.getElementById('cardTotal').textContent = `Total: R$ ${window.checkoutTotal.toFixed(2)}`;
-        
-        // Limpar formulário
-        document.getElementById('cardForm').reset();
-        window.updateCardPreview();
-        
-        document.getElementById('cardPaymentModal').classList.remove('hidden');
-        document.getElementById('cardPaymentModal').classList.add('flex');
-        
-        // Guardar tipo de cartão para uso posterior
-        window.selectedCardType = type;
-    };
-    
-    window.closeCardPaymentModal = function() {
-        document.getElementById('cardPaymentModal').classList.add('hidden');
-        document.getElementById('cardPaymentModal').classList.remove('flex');
-        document.getElementById('paymentMethodModal').classList.remove('hidden');
-        document.getElementById('paymentMethodModal').classList.add('flex');
-    };
-    
-    window.formatAndUpdateCard = function(el) {
-        let value = el.value.replace(/\D/g, '');
-        let formatted = '';
-        for (let i = 0; i < value.length; i += 4) {
-            if (i > 0) formatted += ' ';
-            formatted += value.substring(i, i + 4);
-        }
-        el.value = formatted;
-        window.updateCardPreview();
-    };
-    
-    window.formatExpiry = function(el) {
-        let value = el.value.replace(/\D/g, '');
-        if (value.length >= 2) {
-            el.value = value.substring(0, 2) + '/' + value.substring(2, 4);
-        } else {
-            el.value = value;
-        }
-        window.updateCardPreview();
-    };
-    
-    window.updateCardPreview = function() {
-        const holder = document.getElementById('cardHolder').value || 'Seu Nome';
-        const number = document.getElementById('cardNumber').value || '•••• •••• •••• ••••';
-        const expiry = document.getElementById('cardExpiry').value || 'MM/AA';
-        
-        document.getElementById('cardHolderDisplay').textContent = holder.toUpperCase();
-        document.getElementById('cardNumberDisplay').textContent = number;
-        document.getElementById('cardExpiryDisplay').textContent = expiry;
-    };
-    
-    window.processCardPayment = async function() {
-        try {
-            // Validar campos
-            const holder = document.getElementById('cardHolder').value.trim();
-            const number = document.getElementById('cardNumber').value.trim();
-            const expiry = document.getElementById('cardExpiry').value.trim();
-            const cvc = document.getElementById('cardCvc').value.trim();
-            const email = document.getElementById('cardEmail').value.trim();
-            
-            if (!holder || !number || !expiry || !cvc || !email) {
-                alert('⚠️ Por favor, preencha todos os campos do cartão!');
-                return;
-            }
-            
-            // Validações básicas
-            if (number.replace(/\s/g, '').length < 13) {
-                alert('⚠️ Número do cartão inválido!');
-                return;
-            }
-            
-            if (cvc.length < 3) {
-                alert('⚠️ Código de segurança inválido!');
-                return;
-            }
-            
-            const [month, year] = expiry.split('/');
-            if (!month || !year || month > 12 || month < 1) {
-                alert('⚠️ Data de validade inválida!');
-                return;
-            }
-            
-            if (!email.includes('@')) {
-                alert('⚠️ Email inválido!');
-                return;
-            }
-            
-            // Mostrar estado de processamento
-            const btn = document.querySelector('#cardPaymentModal button[onclick="window.processCardPayment()"]');
-            const originalText = btn.textContent;
-            btn.textContent = '⏳ Processando...';
-            btn.disabled = true;
-            
-            // Preparar dados do cartão
-            const cardData = {
-                number: number,
-                holder: holder,
-                email: email,
-                cvc: cvc,
-                expMonth: parseInt(month),
-                expYear: parseInt('20' + year)
-            };
-            
-            // Preparar dados do pedido
-            const orderData = window.cart.map(item => ({
-                id: item.id,
-                name: item.name,
-                description: item.description || '',
-                quantity: item.quantity,
-                price: item.price
-            }));
-            
-            // Processar pagamento via Mercado Pago
-            const result = await window.mercadoPagoIntegration.processCardPayment(
-                orderData,
-                cardData,
-                {
-                    name: window.deliveryData.name || holder,
-                    email: email,
-                    phone: window.deliveryData.phone || '',
-                    address: window.deliveryData.address || ''
-                }
-            );
-            
-            // Sucesso!
-            btn.textContent = originalText;
-            btn.disabled = false;
-            
-            window.showNotification('✅ Pagamento processado com sucesso! Seu pedido será preparado em breve.');
-            
-            // Enviar para WhatsApp
-            setTimeout(() => {
-                window.sendPaymentToWhatsApp('card');
-            }, 1500);
-            
-            window.closeCardPaymentModal();
-            
-        } catch (error) {
-            console.error('Erro ao processar pagamento:', error);
-            alert('❌ Erro ao processar pagamento: ' + error.message);
-            
-            const btn = document.querySelector('#cardPaymentModal button[onclick="window.processCardPayment()"]');
-            btn.textContent = '✅ Finalizar Pagamento';
-            btn.disabled = false;
-        }
-    };
-    
-    // ===== QR CODE PIX =====
-    window.openQrCodePayment = function() {
-        document.getElementById('qrCodeTotal').textContent = `R$ ${window.checkoutTotal.toFixed(2)}`;
-        
-        // Atualizar chave PIX no modal
-        let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
-        document.getElementById('pixKeyDisplay').textContent = settings.pixKey || 'Não configurada';
-        
-        document.getElementById('qrCodeModal').classList.remove('hidden');
-        document.getElementById('qrCodeModal').classList.add('flex');
-        
-        // Gerar QR Code (usando apenas a chave PIX - mais simples e compatível)
-        setTimeout(() => {
-            window.generateQrCode();
-        }, 300);
-    };
-    
-    // Função para gerar código PIX válido (formato BR Code)
-    function generateValidPixCode(chave, valor, descricao = 'Quitanda') {
-        try {
-            // Formato: 00020126580014br.bcb.brcode010621...
-            // Simplificado para chave de telefone
-            
-            // Remove caracteres especiais da chave
-            const pixKeyClean = chave.replace(/\D/g, '');
-            
-            // Formata o valor com 2 casas decimais
-            const valorFormatado = (valor * 100).toFixed(0); // em centavos
-            
-            // Estrutura básica do código PIX
-            let pixCode = '00020126580014br.bcb.brcode';
-            pixCode += '01051.0.0';
-            pixCode += '52040000';
-            pixCode += '5303986'; // MCC (Merchant Category Code)
-            pixCode += '540' + String(valorFormatado).padStart(10, '0').slice(-10); // Valor
-            pixCode += '5802BR'; // País
-            pixCode += '59' + String('Quitanda').length.toString().padStart(2, '0') + 'Quitanda'; // Nome
-            pixCode += '60' + String('Jabotao').length.toString().padStart(2, '0') + 'Jabotao'; // Cidade
-            pixCode += '62410503' + pixKeyClean; // Chave PIX
-            pixCode += '63041D3C'; // CRC padrão
-            
-            return pixCode;
-        } catch (e) {
-            console.error('Erro ao gerar código PIX:', e);
-            return null;
-        }
-    }
-    
-    window.generateQrCode = async function() {
-        const container = document.getElementById('qrCode');
-        
-        try {
-            // Verificar se a biblioteca QRCode está disponível
-            if (typeof QRCode === 'undefined') {
-                console.error('❌ Biblioteca QRCode não carregada!');
-                container.innerHTML = '<p class="text-red-500 font-bold">❌ Erro: biblioteca QRCode não disponível</p>';
-                return;
-            }
-            
-            container.innerHTML = '<p class="text-gray-600">⏳ Gerando PIX válido...</p>';
-            
-            // Obter configurações
-            let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
-            const pixKey = settings.pixKey;
-            const amount = window.checkoutTotal;
-            
-            console.log('🔍 generateQrCode iniciado:', { pixKey, amount });
-            
-            if (!pixKey) {
-                console.error('❌ Chave PIX não configurada');
-                container.innerHTML = '<p class="text-red-500 font-bold">❌ Chave PIX não configurada!</p>';
-                return;
-            }
-            
-            if (!amount || amount <= 0) {
-                console.error('❌ Valor inválido:', amount);
-                container.innerHTML = '<p class="text-red-500 font-bold">❌ Valor do pedido inválido!</p>';
-                return;
-            }
-            
-            // ===== CHAMAR BACKEND PARA GERAR PIX VÁLIDO =====
-            const backendUrl = 'https://quitanda-backend.onrender.com';
-            
-            console.log('📡 Chamando backend:', backendUrl + '/api/gerar-pix');
-            console.log('📊 Dados:', { pixKey, amount });
-            
-            const response = await fetch(backendUrl + '/api/gerar-pix', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    pixKey: pixKey,
-                    amount: amount,
-                    orderId: 'QUITANDA' + Date.now().toString().slice(-6)
-                })
-            });
-            
-            console.log('📋 Resposta status:', response.status);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
-            }
-            
-            const data = await response.json();
-            console.log('📦 Resposta backend:', data);
-            
-            if (!data.success) {
-                throw new Error(data.error || 'Backend retornou erro desconhecido');
-            }
-            
-            const pixCode = data.pixCode;
-            
-            if (!pixCode) {
-                throw new Error('PIX code vazio na resposta do backend');
-            }
-            
-            console.log('✅ PIX recebido:', pixCode.substring(0, 50) + '...');
-            
-            // Limpar container
-            container.innerHTML = '';
-            
-            // Gerar QR Code a partir do brcode válido
-            try {
-                new QRCode(container, {
-                    text: pixCode,
-                    width: 300,
-                    height: 300,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H,
-                    margin: 2
-                });
-                
-                console.log('%c✅ QR Code gerado com sucesso!', 'color: green; font-weight: bold;');
-            } catch (qrError) {
-                console.error('❌ Erro ao gerar QR Code (qrcodejs):', qrError);
-                container.innerHTML = '<p class="text-red-500 font-bold">❌ Erro ao gerar QR Code</p>';
-                return;
-            }
-            
-            // Armazenar para copiar depois
-            window.currentPixCode = pixCode;
-            window.currentPixKey = pixKey;
-            
-            console.log('%c✅ PIX gerado com sucesso pelo backend!', 'color: green; font-weight: bold;');
-            console.log('📌 Chave PIX:', pixKey);
-            console.log('💰 Valor:', 'R$ ' + amount.toFixed(2));
-            console.log('📱 Código PIX completo:', pixCode);
-            
-        } catch (error) {
-            console.error('%c❌ Erro ao gerar QR Code:', 'color: red; font-weight: bold;', error);
-            console.error('Stack:', error.stack);
-            
-            let errorMsg = '❌ Erro ao conectar com o servidor';
-            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                errorMsg = '❌ Erro de conexão com o backend';
-            } else if (error.message.includes('JSON')) {
-                errorMsg = '❌ Erro: resposta inválida do backend';
-            }
-            
-            container.innerHTML = `
-                <p class="text-red-500 font-bold">${errorMsg}</p>
-                <p class="text-xs text-gray-600 mt-2">Detalhes: ${error.message}</p>
-            `;
-        }
-    };
-    
-    window.copyQrCode = function(btn) {
-        try {
-            // Copiar código PIX completo (mais útil que apenas a chave)
-            let pixCodeToCopy = window.currentPixCode || window.currentPixKey;
-            let settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
-            
-            if (!pixCodeToCopy) {
-                pixCodeToCopy = settings.pixKey;
-            }
-            
-            if (!pixCodeToCopy) {
-                console.error('❌ Nenhum código PIX disponível para copiar');
-                alert('⚠️ Nenhum código PIX foi gerado. Tente novamente.');
-                return;
-            }
-            
-            console.log('📋 Copiando:', pixCodeToCopy.substring(0, 50) + '...');
-            
-            navigator.clipboard.writeText(pixCodeToCopy).then(() => {
-                console.log('✅ Código PIX copiado com sucesso!');
-                
-                // Mostrar feedback visual
-                if (btn) {
-                    let originalText = btn.textContent;
-                    let originalBg = btn.style.backgroundColor;
-                    
-                    btn.textContent = '✅ Chave copiada!';
-                    btn.style.backgroundColor = '#10b981';
-                    btn.disabled = true;
-                    
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                        btn.style.backgroundColor = originalBg;
-                        btn.disabled = false;
-                    }, 2000);
-                }
-            }).catch(err => {
-                console.error('❌ Erro ao copiar:', err);
-                // Fallback: tentar com método antigo
-                try {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = pixCodeToCopy;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    console.log('✅ Copiado com fallback!');
-                    alert('✅ Chave PIX copiada para a área de transferência!');
-                } catch (fallbackErr) {
-                    console.error('❌ Fallback também falhou:', fallbackErr);
-                    alert('Erro ao copiar chave PIX. Por favor, copie manualmente.');
-                }
-            });
-        } catch (error) {
-            console.error('❌ Erro em copyQrCode:', error);
-            alert('Erro ao copiar chave PIX.');
-        }
-    };
-    
-    window.closeQrCodeModal = function() {
-        document.getElementById('qrCodeModal').classList.add('hidden');
-        document.getElementById('qrCodeModal').classList.remove('flex');
-        document.getElementById('paymentMethodModal').classList.remove('hidden');
-        document.getElementById('paymentMethodModal').classList.add('flex');
-    };
-    
-    // ===== ENVIAR PEDIDO FINAL PARA WHATSAPP =====
-    window.sendPaymentToWhatsApp = function(paymentMethod) {
-        const settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
+            settings = JSON.parse(localStorage.getItem('hortifruti_settings') || '{}');
+        } catch (e) {}
         
         let message = '🛒 *NOVO PEDIDO - HORTIFRUTI VILA NATAL*\n\n';
         message += '*Itens do Pedido:*\n';
@@ -1670,12 +1203,12 @@
             message += `  R$ ${item.price.toFixed(2)} × ${item.quantity} = R$ ${(item.price * item.quantity).toFixed(2)}\n`;
         });
         
-        message += `\n*Subtotal: R$ ${window.checkoutCartTotal.toFixed(2)}*\n`;
+        message += `\n*Subtotal: R$ ${cartTotal.toFixed(2)}*\n`;
         
         // Adicionar informações de entrega
         if (window.deliveryType === 'delivery') {
             message += `\n*📍 ENTREGA (DELIVERY)*\n`;
-            message += `Taxa: R$ ${window.checkoutDeliveryFee.toFixed(2)}\n`;
+            message += `Taxa: R$ 3,00\n`;
             message += `\n*Dados do Cliente:*\n`;
             message += `👤 *Nome:* ${window.deliveryData.name}\n`;
             message += `📱 *Telefone:* ${window.deliveryData.phone}\n`;
@@ -1690,30 +1223,17 @@
             message += `\n*🏪 RETIRADA NO LOCAL*\n`;
         }
         
-        message += `\n*TOTAL: R$ ${window.checkoutTotal.toFixed(2)}*\n\n`;
-        
-        // Adicionar informação do método de pagamento
-        if (paymentMethod === 'pix') {
-            message += `*💜 Método de Pagamento: PIX*\n`;
-            message += `*Chave PIX:* ${settings.pixKey || 'Não configurada'}\n`;
-        } else if (paymentMethod === 'card') {
-            message += `*💳 Método de Pagamento: CARTÃO DE CRÉDITO/DÉBITO*\n`;
-            message += `*Status:* Processado\n`;
-        }
+        message += `\n*TOTAL: R$ ${total.toFixed(2)}*\n\n`;
+        message += `💳 *Chave PIX:* ${settings.pixKey || 'Não configurado'}\n`;
         
         const whatsappUrl = `https://wa.me/5581971028677?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
         
-        // Limpar carrinho
         window.cart = [];
         window.deliveryType = 'local';
         window.deliveryData = {};
         updateCartBadge();
-        window.toggleCart();
-    };
-    
-    window.sendToWhatsApp = function() {
-        window.sendPaymentToWhatsApp('pix');
+        window.closePixModal();
     };
     
     // ===== SINCRONIZAÇÃO AUTOMÁTICA DE PRODUTOS =====
